@@ -406,22 +406,37 @@ async def create_checkout(
 
 @api.get("/billing/status/{session_id}")
 async def checkout_status(session_id: str, user=Depends(get_current_user)):
-    host_url = os.environ.get("MONGO_URL")  # just placeholder; webhook_url unused for status
-    stripe = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url="https://example.com/api/webhook/stripe")
-    status = await stripe.get_checkout_status(session_id)
-
     tx = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
     if not tx:
         raise HTTPException(404, "Transaction not found")
 
-    # Update transaction
-    await db.payment_transactions.update_one(
-        {"session_id": session_id},
-        {"$set": {"status": status.status, "payment_status": status.payment_status}},
-    )
+    # Try to fetch live status from Stripe; fall back to stored DB status on error
+    status_obj = None
+    try:
+        stripe = StripeCheckout(
+            api_key=STRIPE_API_KEY,
+            webhook_url="https://example.com/api/webhook/stripe",
+        )
+        status_obj = await stripe.get_checkout_status(session_id)
+        await db.payment_transactions.update_one(
+            {"session_id": session_id},
+            {"$set": {
+                "status": status_obj.status,
+                "payment_status": status_obj.payment_status,
+            }},
+        )
+    except Exception as e:
+        logger.warning(f"Stripe status fetch failed for {session_id}: {e}")
+
+    # Re-read latest tx (webhook may have updated it)
+    tx = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
+    payment_status = (status_obj.payment_status if status_obj else tx.get("payment_status", "pending"))
+    status = (status_obj.status if status_obj else tx.get("status", "pending"))
+    amount_total = int(float(tx.get("amount", 0)) * 100)
+    currency = tx.get("currency", "usd")
 
     # Grant credits only once
-    if status.payment_status == "paid" and not tx.get("credits_granted"):
+    if payment_status == "paid" and not tx.get("credits_granted"):
         plan = PLANS[tx["plan_id"]]
         now = datetime.now(timezone.utc)
         await db.users.update_one(
@@ -437,10 +452,10 @@ async def checkout_status(session_id: str, user=Depends(get_current_user)):
         )
 
     return {
-        "status": status.status,
-        "payment_status": status.payment_status,
-        "amount_total": status.amount_total,
-        "currency": status.currency,
+        "status": status,
+        "payment_status": payment_status,
+        "amount_total": amount_total,
+        "currency": currency,
     }
 
 
