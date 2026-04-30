@@ -4,6 +4,7 @@ import { StarRating } from "../components/StarRating";
 import { MessagesSquare, Star, TrendingUp, Clock, Sparkles, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { WallQR } from "../components/WallQR";
 
 export default function DashboardHome() {
   const { user } = useAuth();
@@ -58,16 +59,20 @@ export default function DashboardHome() {
           </div>
         </div>
 
-        <div className="glass p-7 relative overflow-hidden">
-          <div className="absolute -top-20 -right-20 w-48 h-48 rounded-full bg-[#FF2D75]/20 blur-3xl" />
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#FF2D75] to-[#FF0055] grid place-items-center mb-5 glow-pink">
-            <Sparkles size={18} />
+        <div className="space-y-5">
+          {user.business_slug && (
+            <WallQR slug={user.business_slug} businessName={user.business_profile?.name || user.name} />
+          )}
+          <div className="glass p-6 relative overflow-hidden">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF2D75] to-[#FF0055] grid place-items-center mb-4 glow-pink">
+              <Sparkles size={16} />
+            </div>
+            <h3 className="text-base font-semibold mb-1">Reply faster</h3>
+            <p className="text-xs text-zinc-400 mb-4">Jump to the inbox and craft AI replies in a click.</p>
+            <Link to="/app/reviews" className="btn-primary text-xs" data-testid="quick-reply-cta">
+              Open inbox <ArrowRight size={14} />
+            </Link>
           </div>
-          <h3 className="text-lg font-semibold mb-2">Reply faster</h3>
-          <p className="text-sm text-zinc-400 mb-6">Jump to the review inbox and craft AI replies in a click.</p>
-          <Link to="/app/reviews" className="btn-primary text-sm" data-testid="quick-reply-cta">
-            Open inbox <ArrowRight size={16} />
-          </Link>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { toast } from "sonner";
 import { Building2, ExternalLink, CheckCircle2 } from "lucide-react";
+import { WallQR } from "../components/WallQR";
 
 export default function Profile() {
   const { user, setUser } = useAuth();
@@ -48,6 +49,10 @@ export default function Profile() {
         <h1 className="text-3xl font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>Business Profile</h1>
         <p className="text-sm text-zinc-400 mt-1">Used by AI to tailor replies to your brand voice.</p>
       </div>
+
+      {user.business_slug && (
+        <WallQR slug={user.business_slug} businessName={bp.name || user.name} />
+      )}
 
       <form onSubmit={save} className="glass p-8 space-y-5">
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#FF2D75] to-[#FF0055] grid place-items-center glow-pink">
