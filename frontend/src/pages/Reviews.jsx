@@ -3,7 +3,7 @@ import { api } from "../lib/api";
 import { StarRating } from "../components/StarRating";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
-import { Sparkles, Copy, Check, Plus, Search, Filter, Loader2, Trash2, MessageCircle, Download, Upload } from "lucide-react";
+import { Sparkles, Copy, Check, Plus, Search, Filter, Loader2, Trash2, MessageCircle, Download, Upload, Tag, Brain } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const toneOptions = ["Professional", "Friendly", "Apologetic"];
@@ -30,6 +30,7 @@ export default function Reviews() {
   const [showImport, setShowImport] = useState(false);
   const [importForm, setImportForm] = useState({ business_name: "", category: "", count: 8 });
   const [importing, setImporting] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [newReview, setNewReview] = useState({ reviewer_name: "", rating: 5, text: "", source: "Manual" });
 
   const load = async () => {
@@ -143,6 +144,18 @@ export default function Reviews() {
     if (rating >= 4) return { label: "Positive", cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" };
     if (rating === 3) return { label: "Neutral", cls: "bg-amber-500/10 text-amber-400 border-amber-500/30" };
     return { label: "Negative", cls: "bg-red-500/10 text-red-400 border-red-500/30" };
+  };
+
+  const analyze = async () => {
+    if (!selected) return;
+    setAnalyzing(true);
+    try {
+      const { data } = await api.post(`/reviews/${selected.id}/analyze`);
+      setReviews((rs) => rs.map((r) => r.id === selected.id ? { ...r, sentiment: data.sentiment, topics: data.topics } : r));
+      toast.success("Analyzed");
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Analysis failed");
+    } finally { setAnalyzing(false); }
   };
 
   const outOfCredits = user.credits <= 0;
@@ -271,6 +284,28 @@ export default function Reviews() {
               <p className="text-zinc-300 leading-relaxed text-sm bg-white/[0.02] p-5 rounded-xl border border-white/5" data-testid="review-text">
                 {selected.text}
               </p>
+
+              {/* Analyze / topic tags */}
+              <div className="flex items-center flex-wrap gap-2">
+                {selected.topics?.length ? (
+                  selected.topics.map((t, i) => (
+                    <span key={i} className="text-[10px] px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-zinc-300 flex items-center gap-1" data-testid={`topic-tag-${i}`}>
+                      <Tag size={10} /> {t}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-[11px] text-zinc-500">No AI topics yet</span>
+                )}
+                <button
+                  onClick={analyze}
+                  disabled={analyzing}
+                  className="text-[10px] px-2.5 py-1 rounded-full border border-[#FF2D75]/30 text-[#FF2D75] hover:bg-[#FF2D75]/10 flex items-center gap-1 transition"
+                  data-testid="analyze-review-btn"
+                >
+                  {analyzing ? <Loader2 size={10} className="animate-spin" /> : <Brain size={10} />}
+                  {selected.topics?.length ? "Re-analyze" : "Analyze"}
+                </button>
+              </div>
 
               <div>
                 <div className="text-xs uppercase tracking-widest text-zinc-500 mb-3">Tone</div>

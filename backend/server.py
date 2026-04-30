@@ -65,6 +65,7 @@ class UserOut(BaseModel):
     credits: int
     credits_reset_at: str
     business_profile: Optional[dict] = None
+    business_slug: Optional[str] = None
 
 
 class TokenOut(BaseModel):
@@ -101,6 +102,14 @@ class ReviewIn(BaseModel):
 class CheckoutIn(BaseModel):
     plan_id: Literal["standard", "pro"]
     origin_url: str
+
+
+def slugify(s: str) -> str:
+    import re as _re
+    s = (s or "").lower().strip()
+    s = _re.sub(r"[^a-z0-9\s-]", "", s)
+    s = _re.sub(r"[\s-]+", "-", s).strip("-")
+    return s or "business"
 
 
 # ---------- Helpers ----------
@@ -162,6 +171,7 @@ def user_to_out(u: dict) -> UserOut:
         credits=u["credits"],
         credits_reset_at=u["credits_reset_at"],
         business_profile=u.get("business_profile"),
+        business_slug=u.get("business_slug"),
     )
 
 
@@ -201,6 +211,8 @@ async def signup(data: SignupIn):
         raise HTTPException(400, "Email already registered")
     user_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
+    base_slug = slugify(data.name)
+    slug_candidate = f"{base_slug}-{user_id[:6]}"
     user_doc = {
         "id": user_id,
         "email": data.email.lower(),
@@ -214,6 +226,8 @@ async def signup(data: SignupIn):
             "category": "Local Business",
             "location": "Your City",
         },
+        "business_slug": slug_candidate,
+        "team_members": [],
         "created_at": now.isoformat(),
     }
     await db.users.insert_one(user_doc)
@@ -229,6 +243,11 @@ async def login(data: LoginIn):
     user = await db.users.find_one({"email": data.email.lower()})
     if not user or not verify_password(data.password, user["password_hash"]):
         raise HTTPException(401, "Invalid email or password")
+    # Backfill business_slug if missing (for users created before slug feature)
+    if not user.get("business_slug"):
+        slug = f"{slugify(user['name'])}-{user['id'][:6]}"
+        await db.users.update_one({"id": user["id"]}, {"$set": {"business_slug": slug}})
+        user["business_slug"] = slug
     user = await maybe_reset_credits(user)
     token = create_token(user["id"])
     user.pop("password_hash", None)
@@ -636,6 +655,103 @@ async def admin_set_credits(
     if res.matched_count == 0:
         raise HTTPException(404, "User not found")
     return {"ok": True, "email": data.email.lower(), "credits": data.credits}
+
+
+# ---------- Public Wall of Love ----------
+@api.get("/public/wall/{slug}")
+async def public_wall(slug: str):
+    user = await db.users.find_one({"business_slug": slug}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(404, "Business not found")
+    reviews = await db.reviews.find(
+        {"user_id": user["id"], "rating": {"$gte": 4}, "replied": True},
+        {"_id": 0, "user_id": 0},
+    ).sort("created_at", -1).to_list(20)
+    all_reviews = await db.reviews.find({"user_id": user["id"]}, {"_id": 0}).to_list(1000)
+    avg = round(sum(r["rating"] for r in all_reviews) / len(all_reviews), 2) if all_reviews else 0
+    return {
+        "business": user.get("business_profile", {}),
+        "slug": slug,
+        "average_rating": avg,
+        "total_reviews": len(all_reviews),
+        "reviews": reviews,
+    }
+
+
+# ---------- AI Sentiment & Topic Analyze ----------
+@api.post("/reviews/{review_id}/analyze")
+async def analyze_review(review_id: str, user=Depends(get_current_user)):
+    review = await db.reviews.find_one({"id": review_id, "user_id": user["id"]}, {"_id": 0})
+    if not review:
+        raise HTTPException(404, "Review not found")
+    system = (
+        "You analyze customer reviews. Return ONLY valid JSON with fields: "
+        '{"sentiment": "positive" | "neutral" | "negative", "topics": [3-5 short tags like "service","wait time","pricing","ambience","food quality","staff friendliness"]}'
+    )
+    prompt = f"Review (rating {review['rating']}/5): {review['text']}"
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"analyze-{user['id']}-{uuid.uuid4()}",
+            system_message=system,
+        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+        raw = await chat.send_message(UserMessage(text=prompt))
+    except Exception:
+        logger.exception("Analyze AI error")
+        raise HTTPException(500, "Analysis failed")
+
+    import json as _json
+    import re as _re
+    try:
+        m = _re.search(r"\{.*\}", raw, _re.DOTALL)
+        obj = _json.loads(m.group(0)) if m else _json.loads(raw)
+    except Exception:
+        raise HTTPException(500, "AI returned invalid JSON")
+
+    sentiment = obj.get("sentiment", "neutral")
+    topics = obj.get("topics", [])[:5]
+    await db.reviews.update_one(
+        {"id": review_id}, {"$set": {"sentiment": sentiment, "topics": topics}}
+    )
+    return {"sentiment": sentiment, "topics": topics}
+
+
+# ---------- Team ----------
+class InviteIn(BaseModel):
+    email: EmailStr
+    role: Literal["admin", "member"] = "member"
+
+
+@api.get("/team")
+async def list_team(user=Depends(get_current_user)):
+    return user.get("team_members", []) or []
+
+
+@api.post("/team/invite")
+async def invite_member(data: InviteIn, request: Request, user=Depends(get_current_user)):
+    members = user.get("team_members", []) or []
+    if any(m["email"].lower() == data.email.lower() for m in members):
+        raise HTTPException(400, "Already invited")
+    token = uuid.uuid4().hex
+    new_member = {
+        "email": data.email.lower(),
+        "role": data.role,
+        "status": "invited",
+        "invite_token": token,
+        "invited_at": datetime.now(timezone.utc).isoformat(),
+    }
+    members.append(new_member)
+    await db.users.update_one({"id": user["id"]}, {"$set": {"team_members": members}})
+    origin = str(request.headers.get("origin") or request.base_url).rstrip("/")
+    invite_link = f"{origin}/signup?invite={token}"
+    return {"member": new_member, "invite_link": invite_link}
+
+
+@api.delete("/team/{email}")
+async def remove_member(email: str, user=Depends(get_current_user)):
+    members = [m for m in (user.get("team_members", []) or []) if m["email"].lower() != email.lower()]
+    await db.users.update_one({"id": user["id"]}, {"$set": {"team_members": members}})
+    return {"ok": True}
 
 
 @api.get("/")

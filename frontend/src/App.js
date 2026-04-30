@@ -12,6 +12,8 @@ import Analytics from "./pages/Analytics";
 import Profile from "./pages/Profile";
 import Billing from "./pages/Billing";
 import BillingSuccess from "./pages/BillingSuccess";
+import Team from "./pages/Team";
+import Wall from "./pages/Wall";
 
 const Protected = ({ children }) => {
   const { user, loading } = useAuth();
@@ -28,6 +30,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/wall/:slug" element={<Wall />} />
             <Route path="/login" element={<Auth mode="login" />} />
             <Route path="/signup" element={<Auth mode="signup" />} />
             <Route path="/billing/success" element={<Protected><BillingSuccess /></Protected>} />
@@ -36,6 +39,7 @@ function App() {
               <Route path="reviews" element={<Reviews />} />
               <Route path="analytics" element={<Analytics />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="team" element={<Team />} />
               <Route path="billing" element={<Billing />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -36,6 +36,12 @@ Build a modern SaaS web app "ReviewAI" that helps local businesses improve their
 - AI usage history tracking + 30-day area chart on Analytics page
 - Admin endpoint /api/admin/set-credits (X-Admin-Secret header) for QA/testing
 
+## Implemented (Feb 2026 — v1.2 viral + collaboration)
+- **Public Wall of Love** at `/wall/:slug` (no auth) — branded dark page with business header, avg rating, top 4-5★ replied reviews, "Create your own wall" CTA. Every new user gets a unique `business_slug`. Share button added to dashboard topbar.
+- **AI Analyze** endpoint `POST /api/reviews/:id/analyze` — Claude extracts sentiment + 3-5 topic tags, stored on review. On-demand "Analyze" button in Reviews detail panel; topic chips render after analysis.
+- **Team members** at `/app/team` — invite teammates by email, generates shareable invite link (copy-to-clipboard). Endpoints: GET/POST/DELETE `/api/team*`. No real email provider integrated yet (mocked via shareable link).
+- Backfill of `business_slug` on login for pre-v1.2 users.
+
 ## Backlog
 - P0: End-to-end testing via testing_agent_v3
 - P1: Email notifications for new reviews, multi-business profiles on Pro plan, review import from Google/Yelp APIs

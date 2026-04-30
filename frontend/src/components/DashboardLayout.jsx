@@ -1,13 +1,14 @@
 import { NavLink, useNavigate, Outlet, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Logo } from "./Logo";
-import { LayoutDashboard, MessagesSquare, BarChart3, CreditCard, Building2, LogOut, Zap } from "lucide-react";
+import { LayoutDashboard, MessagesSquare, BarChart3, CreditCard, Building2, LogOut, Zap, Users, Share2 } from "lucide-react";
 
 const links = [
   { to: "/app", icon: LayoutDashboard, label: "Dashboard", end: true },
   { to: "/app/reviews", icon: MessagesSquare, label: "Reviews" },
   { to: "/app/analytics", icon: BarChart3, label: "Analytics" },
   { to: "/app/profile", icon: Building2, label: "Business" },
+  { to: "/app/team", icon: Users, label: "Team" },
   { to: "/app/billing", icon: CreditCard, label: "Billing" },
 ];
 
@@ -61,6 +62,17 @@ export default function DashboardLayout() {
             Welcome back, <span className="text-white">{user.name}</span>
           </div>
           <div className="flex items-center gap-3">
+            {user.business_slug && (
+              <a
+                href={`/wall/${user.business_slug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="hidden sm:inline-flex items-center gap-2 text-xs text-zinc-400 hover:text-white px-3 py-1.5 rounded-full border border-white/10 hover:border-white/20 transition"
+                data-testid="share-wall-link"
+              >
+                <Share2 size={12} /> Wall of Love
+              </a>
+            )}
             <div
               className={`flex items-center gap-2 px-4 py-1.5 rounded-full border ${
                 outOfCredits
