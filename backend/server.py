@@ -77,6 +77,8 @@ class BusinessProfileIn(BaseModel):
     name: str
     category: str
     location: str
+    google_place_id: Optional[str] = None
+    google_api_key: Optional[str] = None
 
 
 class GenerateReplyIn(BaseModel):
@@ -263,10 +265,15 @@ async def me(user=Depends(get_current_user)):
 # ---------- Business Profile ----------
 @api.put("/profile", response_model=UserOut)
 async def update_profile(data: BusinessProfileIn, user=Depends(get_current_user)):
+    profile = data.model_dump(exclude_none=False)
+    # Preserve existing google_api_key if client didn't send it (avoid overwriting with null)
+    existing = user.get("business_profile") or {}
+    if not profile.get("google_api_key") and existing.get("google_api_key"):
+        profile["google_api_key"] = existing["google_api_key"]
     await db.users.update_one(
-        {"id": user["id"]}, {"$set": {"business_profile": data.model_dump()}}
+        {"id": user["id"]}, {"$set": {"business_profile": profile}}
     )
-    user["business_profile"] = data.model_dump()
+    user["business_profile"] = profile
     return user_to_out(user)
 
 

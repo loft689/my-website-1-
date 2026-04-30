@@ -13,8 +13,8 @@ export const Navbar = () => {
         <Link to="/" data-testid="nav-home-link"><Logo /></Link>
         <nav className="hidden md:flex items-center gap-8 text-sm text-zinc-300">
           <Link to="/#features" className="hover:text-white transition" data-testid="nav-features">Features</Link>
+          <a href="/#how-to-use" className="hover:text-white transition" data-testid="nav-howto">How to use</a>
           <Link to="/pricing" className="hover:text-white transition" data-testid="nav-pricing">Pricing</Link>
-          <a href="/#how" className="hover:text-white transition" data-testid="nav-how">How it works</a>
         </nav>
         <div className="flex items-center gap-3">
           {user ? (

@@ -82,6 +82,41 @@ export default function Landing() {
               </div>
             ))}
           </div>
+
+          {/* How to Use — nested inside Features */}
+          <div id="how-to-use" className="mt-24" data-testid="how-to-use-section">
+            <div className="max-w-xl mb-12">
+              <div className="text-xs uppercase tracking-widest text-[#FF2D75] mb-3">How to use</div>
+              <h3 className="text-3xl md:text-4xl font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                From signup to first reply <span className="gradient-text">in under 60 seconds</span>
+              </h3>
+            </div>
+            <div className="grid md:grid-cols-2 gap-5">
+              {[
+                { n: "1", t: "Create your account", d: "Sign up with email — you'll start with 10 free credits and 6 sample reviews to play with. No card required." },
+                { n: "2", t: "Connect Google Reviews", d: "Open Business → paste your Google Place ID and (optional) API key to pull live reviews. No keys? Click Import to AI-simulate a realistic snapshot." },
+                { n: "3", t: "Pick a tone & generate", d: "Open any review, choose Professional / Friendly / Apologetic, and hit Generate AI Reply. Claude Sonnet 4.5 drafts a reply in ~2 seconds. Costs 1 credit." },
+                { n: "4", t: "Analyze sentiment & topics", d: "Click Analyze on any review to extract sentiment + topic tags. Use them to spot recurring complaints or wins across customers." },
+                { n: "5", t: "Share your Wall of Love", d: "Every account gets a public /wall/your-business URL showcasing top 4-5★ reviews. Drop the link on your site, menu, or QR codes for free social proof." },
+                { n: "6", t: "Invite your team", d: "Open Team in the sidebar, invite teammates by email, and respond together. Pro plan unlocks unlimited business profiles." },
+              ].map((s) => (
+                <div key={s.n} className="glass p-6 flex gap-5" data-testid={`how-step-${s.n}`}>
+                  <div className="text-3xl font-semibold gradient-text shrink-0 w-10" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                    {s.n}
+                  </div>
+                  <div>
+                    <div className="font-semibold mb-1">{s.t}</div>
+                    <p className="text-sm text-zinc-400 leading-relaxed">{s.d}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-10">
+              <Link to="/signup" className="btn-primary inline-flex" data-testid="how-to-cta">
+                Try it free <ArrowRight size={16} />
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
