@@ -3,7 +3,7 @@ import { api } from "../lib/api";
 import { StarRating } from "../components/StarRating";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
-import { Sparkles, Copy, Check, Plus, Search, Filter, Loader2, Trash2, MessageCircle } from "lucide-react";
+import { Sparkles, Copy, Check, Plus, Search, Filter, Loader2, Trash2, MessageCircle, Download, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const toneOptions = ["Professional", "Friendly", "Apologetic"];
@@ -27,6 +27,9 @@ export default function Reviews() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importForm, setImportForm] = useState({ business_name: "", category: "", count: 8 });
+  const [importing, setImporting] = useState(false);
   const [newReview, setNewReview] = useState({ reviewer_name: "", rating: 5, text: "", source: "Manual" });
 
   const load = async () => {
@@ -107,6 +110,41 @@ export default function Reviews() {
     } catch { toast.error("Failed to delete"); }
   };
 
+  const doImport = async (e) => {
+    e.preventDefault();
+    if (!importForm.business_name || !importForm.category) return;
+    setImporting(true);
+    try {
+      const { data } = await api.post("/reviews/import", importForm);
+      setReviews((rs) => [...data.reviews, ...rs]);
+      setShowImport(false);
+      toast.success(`Imported ${data.imported} reviews`);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Import failed");
+    } finally { setImporting(false); }
+  };
+
+  const doExport = async () => {
+    try {
+      const token = localStorage.getItem("reviewai_token");
+      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+      const res = await fetch(`${BACKEND_URL}/api/reviews/export`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "reviews.csv"; a.click();
+      URL.revokeObjectURL(url);
+    } catch { toast.error("Export failed"); }
+  };
+
+  const sentimentOf = (rating) => {
+    if (rating >= 4) return { label: "Positive", cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" };
+    if (rating === 3) return { label: "Neutral", cls: "bg-amber-500/10 text-amber-400 border-amber-500/30" };
+    return { label: "Negative", cls: "bg-red-500/10 text-red-400 border-red-500/30" };
+  };
+
   const outOfCredits = user.credits <= 0;
 
   return (
@@ -116,9 +154,17 @@ export default function Reviews() {
           <h1 className="text-3xl font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>Review Inbox</h1>
           <p className="text-sm text-zinc-400 mt-1">{reviews.length} reviews • {reviews.filter(r => !r.replied).length} awaiting reply</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="btn-primary text-sm" data-testid="add-review-btn">
-          <Plus size={16} /> Add review
-        </button>
+        <div className="flex gap-2">
+          <button onClick={doExport} className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm font-medium" data-testid="export-reviews-btn">
+            <Download size={14} /> Export CSV
+          </button>
+          <button onClick={() => setShowImport(true)} className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm font-medium" data-testid="import-reviews-btn">
+            <Upload size={14} /> Import
+          </button>
+          <button onClick={() => setShowAdd(true)} className="btn-primary text-sm" data-testid="add-review-btn">
+            <Plus size={16} /> Add review
+          </button>
+        </div>
       </div>
 
       {/* Search + filters */}
@@ -180,11 +226,16 @@ export default function Reviews() {
                 </div>
                 <div className="flex items-center justify-between gap-2 mb-1.5">
                   <StarRating value={r.rating} size={11} />
-                  {r.replied && (
-                    <span className="text-[10px] flex items-center gap-1 text-emerald-400">
-                      <MessageCircle size={10} /> Replied
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full border ${sentimentOf(r.rating).cls}`}>
+                      {sentimentOf(r.rating).label}
                     </span>
-                  )}
+                    {r.replied && (
+                      <span className="text-[10px] flex items-center gap-1 text-emerald-400">
+                        <MessageCircle size={10} /> Replied
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="text-xs text-zinc-400 line-clamp-2">{r.text}</div>
               </button>
@@ -206,6 +257,9 @@ export default function Reviews() {
                     <div className="flex items-center gap-2 mt-0.5">
                       <StarRating value={selected.rating} size={12} />
                       <span className="text-xs text-zinc-500">• {selected.source}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border ${sentimentOf(selected.rating).cls}`}>
+                        {sentimentOf(selected.rating).label}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -303,6 +357,42 @@ export default function Reviews() {
             <div className="flex gap-3 justify-end">
               <button type="button" onClick={() => setShowAdd(false)} className="px-5 py-2.5 rounded-full text-sm text-zinc-400 hover:text-white">Cancel</button>
               <button type="submit" className="btn-primary text-sm" data-testid="add-review-submit">Add</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Import modal */}
+      {showImport && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-6" onClick={() => setShowImport(false)}>
+          <form onClick={(e) => e.stopPropagation()} onSubmit={doImport} className="glass p-8 w-full max-w-md space-y-4" data-testid="import-reviews-modal">
+            <div>
+              <h3 className="text-xl font-semibold" style={{ fontFamily: "'Outfit', sans-serif" }}>Import reviews</h3>
+              <p className="text-xs text-zinc-500 mt-1">We'll use AI to pull a realistic snapshot of reviews for your business. Connect Google/Yelp APIs later for live sync.</p>
+            </div>
+            <div>
+              <label className="text-xs text-zinc-400 mb-1.5 block">Business name</label>
+              <input required className="input-dark" value={importForm.business_name}
+                onChange={(e) => setImportForm((f) => ({ ...f, business_name: e.target.value }))}
+                placeholder="e.g. Blue Bottle Coffee" data-testid="import-name-input" />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-400 mb-1.5 block">Category</label>
+              <input required className="input-dark" value={importForm.category}
+                onChange={(e) => setImportForm((f) => ({ ...f, category: e.target.value }))}
+                placeholder="e.g. Coffee shop, Dentist" data-testid="import-category-input" />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-400 mb-1.5 block">How many reviews?</label>
+              <input type="number" min={1} max={15} className="input-dark" value={importForm.count}
+                onChange={(e) => setImportForm((f) => ({ ...f, count: parseInt(e.target.value || 1) }))}
+                data-testid="import-count-input" />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button type="button" onClick={() => setShowImport(false)} className="px-5 py-2.5 rounded-full text-sm text-zinc-400 hover:text-white">Cancel</button>
+              <button type="submit" disabled={importing} className="btn-primary text-sm" data-testid="import-submit-btn">
+                {importing ? <><Loader2 size={14} className="animate-spin" /> Importing…</> : <><Sparkles size={14} /> Import</>}
+              </button>
             </div>
           </form>
         </div>

@@ -1,13 +1,20 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
-import { Star, MessageSquare, TrendingUp, Award } from "lucide-react";
+import { Star, MessageSquare, TrendingUp, Award, Activity } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from "recharts";
 
 export default function Analytics() {
   const [stats, setStats] = useState(null);
-  useEffect(() => { api.get("/analytics").then(({ data }) => setStats(data)); }, []);
-  if (!stats) return <div className="text-zinc-500">Loading…</div>;
+  const [usage, setUsage] = useState([]);
 
+  useEffect(() => {
+    api.get("/analytics").then(({ data }) => setStats(data));
+    api.get("/analytics/usage?days=30").then(({ data }) => setUsage(data.days));
+  }, []);
+
+  if (!stats) return <div className="text-zinc-500">Loading…</div>;
   const max = Math.max(...Object.values(stats.rating_distribution), 1);
+  const totalGens = usage.reduce((a, b) => a + b.count, 0);
 
   return (
     <div className="space-y-8" data-testid="analytics-page">
@@ -21,6 +28,38 @@ export default function Analytics() {
         <Stat label="Total reviews" value={stats.total_reviews} icon={MessageSquare} />
         <Stat label="Response rate" value={stats.response_rate} icon={TrendingUp} suffix="%" />
         <Stat label="Replied" value={stats.replied_count} icon={Award} />
+      </div>
+
+      <div className="glass p-7" data-testid="usage-chart-card">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Activity size={18} className="text-[#FF2D75]" /> AI usage (last 30 days)
+            </h3>
+            <p className="text-xs text-zinc-500 mt-1">{totalGens} AI replies generated</p>
+          </div>
+        </div>
+        <div style={{ width: "100%", height: 240 }}>
+          <ResponsiveContainer>
+            <AreaChart data={usage} margin={{ top: 5, right: 12, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="pinkGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#FF2D75" stopOpacity={0.6} />
+                  <stop offset="100%" stopColor="#FF2D75" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="date" tick={{ fill: "#71717a", fontSize: 10 }} tickFormatter={(d) => d.slice(5)} interval={4} stroke="rgba(255,255,255,0.1)" />
+              <YAxis tick={{ fill: "#71717a", fontSize: 10 }} stroke="rgba(255,255,255,0.1)" allowDecimals={false} />
+              <Tooltip
+                contentStyle={{ background: "rgba(18,18,18,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }}
+                labelStyle={{ color: "#fff" }}
+                itemStyle={{ color: "#FF2D75" }}
+              />
+              <Area type="monotone" dataKey="count" stroke="#FF2D75" strokeWidth={2} fill="url(#pinkGrad)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       <div className="glass p-7">

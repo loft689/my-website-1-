@@ -32,6 +32,7 @@ JWT_EXP_DAYS = 7
 
 EMERGENT_LLM_KEY = os.environ["EMERGENT_LLM_KEY"]
 STRIPE_API_KEY = os.environ["STRIPE_API_KEY"]
+ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "")
 
 # Fixed server-side plan definitions (NEVER trust client prices)
 PLANS = {
@@ -326,6 +327,15 @@ async def generate_reply(data: GenerateReplyIn, user=Depends(get_current_user)):
     new_credits = user["credits"] - 1
     await db.users.update_one({"id": user["id"]}, {"$set": {"credits": new_credits}})
 
+    # Track usage event for history chart
+    await db.ai_generations.insert_one({
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "tone": data.tone,
+        "rating": data.rating,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
     # Save to review if review_id provided
     if data.review_id:
         await db.reviews.update_one(
@@ -488,6 +498,144 @@ async def stripe_webhook(request: Request, stripe_signature: Optional[str] = Hea
                     {"$set": {"credits_granted": True, "payment_status": "paid"}},
                 )
     return {"received": True}
+
+
+# ---------- Usage / Export / Import / Admin ----------
+@api.get("/analytics/usage")
+async def usage_history(days: int = 30, user=Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+    start = now - timedelta(days=days - 1)
+    events = await db.ai_generations.find(
+        {"user_id": user["id"], "created_at": {"$gte": start.isoformat()}},
+        {"_id": 0, "created_at": 1},
+    ).to_list(5000)
+    buckets = {}
+    for i in range(days):
+        d = (start + timedelta(days=i)).strftime("%Y-%m-%d")
+        buckets[d] = 0
+    for e in events:
+        d = e["created_at"][:10]
+        if d in buckets:
+            buckets[d] += 1
+    return {"days": [{"date": d, "count": c} for d, c in buckets.items()]}
+
+
+@api.get("/reviews/export")
+async def export_reviews(user=Depends(get_current_user)):
+    from fastapi.responses import StreamingResponse
+    import csv
+    import io
+
+    reviews = (
+        await db.reviews.find({"user_id": user["id"]}, {"_id": 0})
+        .sort("created_at", -1)
+        .to_list(2000)
+    )
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["reviewer_name", "rating", "source", "created_at", "replied", "text", "reply"])
+    for r in reviews:
+        writer.writerow([
+            r.get("reviewer_name", ""),
+            r.get("rating", ""),
+            r.get("source", ""),
+            r.get("created_at", ""),
+            "yes" if r.get("replied") else "no",
+            (r.get("text") or "").replace("\n", " "),
+            (r.get("reply") or "").replace("\n", " "),
+        ])
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=reviews.csv"},
+    )
+
+
+class ImportIn(BaseModel):
+    business_name: str
+    category: str
+    count: int = 8
+
+
+@api.post("/reviews/import")
+async def import_reviews(data: ImportIn, user=Depends(get_current_user)):
+    """Simulated review import: uses AI to generate realistic reviews for the business."""
+    if data.count < 1 or data.count > 15:
+        raise HTTPException(400, "count must be 1-15")
+    system = (
+        "You generate realistic online customer reviews as JSON for a given business. "
+        "Mix ratings (some 5, some 4, some 3, one 2, sometimes one 1). Keep each review 20-60 words, "
+        "sounding authentic with specific details. Use diverse reviewer names and sources "
+        "(Google, Yelp, Facebook, Trustpilot)."
+    )
+    prompt = (
+        f"Generate {data.count} realistic reviews for the business '{data.business_name}' "
+        f"(category: {data.category}). Return ONLY a JSON array with objects having fields: "
+        f"reviewer_name (string), rating (int 1-5), text (string), source (string). "
+        f"Do not include any text outside the JSON array."
+    )
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"import-{user['id']}-{uuid.uuid4()}",
+            system_message=system,
+        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+        raw = await chat.send_message(UserMessage(text=prompt))
+    except Exception:
+        logger.exception("Import AI error")
+        raise HTTPException(500, "Failed to import reviews")
+
+    import json as _json
+    import re as _re
+    # Extract JSON array
+    try:
+        match = _re.search(r"\[.*\]", raw, _re.DOTALL)
+        items = _json.loads(match.group(0)) if match else _json.loads(raw)
+    except Exception:
+        raise HTTPException(500, "AI returned invalid JSON")
+
+    now = datetime.now(timezone.utc)
+    docs = []
+    for i, it in enumerate(items):
+        rating = int(it.get("rating", 5))
+        rating = max(1, min(5, rating))
+        docs.append({
+            "id": str(uuid.uuid4()),
+            "user_id": user["id"],
+            "reviewer_name": str(it.get("reviewer_name", "Anonymous")),
+            "rating": rating,
+            "text": str(it.get("text", "")),
+            "source": str(it.get("source", "Imported")),
+            "reply": None,
+            "replied": False,
+            "created_at": (now - timedelta(hours=i)).isoformat(),
+        })
+    if docs:
+        await db.reviews.insert_many(docs)
+    for d in docs:
+        d.pop("_id", None)
+    return {"imported": len(docs), "reviews": docs}
+
+
+class AdminCreditsIn(BaseModel):
+    email: EmailStr
+    credits: int
+
+
+@api.post("/admin/set-credits")
+async def admin_set_credits(
+    data: AdminCreditsIn,
+    x_admin_secret: Optional[str] = Header(None, alias="X-Admin-Secret"),
+):
+    if not ADMIN_SECRET or x_admin_secret != ADMIN_SECRET:
+        raise HTTPException(401, "Invalid admin secret")
+    res = await db.users.update_one(
+        {"email": data.email.lower()}, {"$set": {"credits": max(0, data.credits)}}
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "User not found")
+    return {"ok": True, "email": data.email.lower(), "credits": data.credits}
 
 
 @api.get("/")

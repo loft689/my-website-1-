@@ -26,8 +26,15 @@ Build a modern SaaS web app "ReviewAI" that helps local businesses improve their
 - Analytics page (stats + rating distribution bars)
 - Business profile editor
 - Billing page (current plan, credits, next refresh)
-- Billing success flow with polling
+- Billing success flow with polling (robust try/except fallback to DB status)
 - 6 seed reviews per signup
+
+## Implemented (Feb 2026 — v1.1 enhancements)
+- AI-powered review import (Claude generates realistic reviews by business name + category)
+- Export reviews to CSV
+- Sentiment badges on reviews (Positive/Neutral/Negative derived from rating)
+- AI usage history tracking + 30-day area chart on Analytics page
+- Admin endpoint /api/admin/set-credits (X-Admin-Secret header) for QA/testing
 
 ## Backlog
 - P0: End-to-end testing via testing_agent_v3
