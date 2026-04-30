@@ -1,0 +1,108 @@
+{
+  "theme": "dark",
+  "archetype": "5 (Jewel & Luxury) with 7 (Electric & Neon) accents",
+  "colors": {
+    "background": "#0A0A0A",
+    "foreground": "#FFFFFF",
+    "primary": "#FF2D75",
+    "primary_gradient": "linear-gradient(to right, #FF2D75, #FF0055)",
+    "surface": "#121212",
+    "surface_glass": "rgba(0,0,0,0.6)",
+    "border": "rgba(255, 255, 255, 0.1)",
+    "text_muted": "#A1A1AA",
+    "accent_glow": "rgba(255, 45, 117, 0.3)"
+  },
+  "typography": {
+    "heading_font": "'Outfit', sans-serif",
+    "body_font": "'Plus Jakarta Sans', sans-serif",
+    "h1": "text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight",
+    "h2": "text-3xl sm:text-4xl font-semibold tracking-tight",
+    "h3": "text-xl sm:text-2xl font-medium",
+    "body": "text-base text-zinc-400",
+    "small": "text-sm text-zinc-500",
+    "font_imports": [
+      "@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');"
+    ]
+  },
+  "spacing_and_layout": {
+    "container_padding": "px-6 md:px-12 lg:px-24",
+    "section_spacing": "py-24 md:py-32",
+    "card_padding": "p-6 md:p-8",
+    "border_radius": {
+      "card": "rounded-2xl",
+      "button": "rounded-full",
+      "input": "rounded-xl"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-gradient-to-r from-[#FF2D75] to-[#FF0055] text-white rounded-full px-6 py-3 font-medium hover:shadow-[0_0_20px_rgba(255,45,117,0.4)] transition-all duration-300",
+      "secondary": "bg-white/5 border border-white/10 text-white rounded-full px-6 py-3 font-medium hover:bg-white/10 transition-all duration-300 backdrop-blur-md",
+      "outline": "border border-white/10 text-white rounded-full px-6 py-3 font-medium hover:bg-white/5 transition-all duration-300"
+    },
+    "cards": {
+      "glass": "bg-[#0A0A0A]/60 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8 hover:border-white/20 transition-all duration-300",
+      "solid": "bg-[#121212] border border-white/5 rounded-2xl p-6 md:p-8"
+    },
+    "inputs": {
+      "default": "bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FF2D75] focus:ring-1 focus:ring-[#FF2D75] transition-all placeholder:text-zinc-600"
+    },
+    "header": {
+      "style": "fixed top-0 w-full z-50 bg-[#0A0A0A]/70 backdrop-blur-2xl border-b border-white/5"
+    }
+  },
+  "media": {
+    "logo": {
+      "url": "https://customer-assets.emergentagent.com/job_e38da796-4e34-44aa-ac07-3e3afe6444bc/artifacts/9cvckxom_Screenshot%202026-04-30%20102910.png",
+      "alt": "ReviewAI Logo",
+      "usage": "Navbar, Footer, Favicon"
+    },
+    "hero_background": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/e38da796-4e34-44aa-ac07-3e3afe6444bc/images/9f2c1b8b9fa6eade1ee6c10f563ad3e72be7591cc362a1a2d58018ef755fcebe.png",
+      "alt": "Abstract premium dark volumetric background",
+      "usage": "Landing page hero section background (overlay with bg-black/40)"
+    },
+    "feature_background": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/e38da796-4e34-44aa-ac07-3e3afe6444bc/images/f5562095e14884ce063fe9599d3425e5ade0a62326956e4dc878d04a6b2471ce.png",
+      "alt": "Dark minimalist glassmorphism geometry",
+      "usage": "Features section background or specific feature cards"
+    },
+    "avatars": [
+      {
+        "url": "https://images.unsplash.com/photo-1769636929388-99eff95d3bf1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwzfHxwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdCUyMGhlYWRzaG90fGVufDB8fHx8MTc3NzU2ODEwOHww&ixlib=rb-4.1.0&q=85",
+        "alt": "Reviewer Avatar 1",
+        "usage": "Dashboard review list"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1576558656222-ba66febe3dec?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHw0fHxwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdCUyMGhlYWRzaG90fGVufDB8fHx8MTc3NzU2ODEwOHww&ixlib=rb-4.1.0&q=85",
+        "alt": "Reviewer Avatar 2",
+        "usage": "Dashboard review list"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1672685667592-0392f458f46f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdCUyMGhlYWRzaG90fGVufDB8fHx8MTc3NzU2ODEwOHww&ixlib=rb-4.1.0&q=85",
+        "alt": "Reviewer Avatar 3",
+        "usage": "Dashboard review list"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1762522926157-bcc04bf0b10a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwyfHxwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdCUyMGhlYWRzaG90fGVufDB8fHx8MTc3NzU2ODEwOHww&ixlib=rb-4.1.0&q=85",
+        "alt": "Reviewer Avatar 4",
+        "usage": "Dashboard review list"
+      }
+    ]
+  },
+  "motion_and_effects": {
+    "hover": "Subtle translate-y-[-2px] with increased shadow glow for interactive elements",
+    "glow": "Neon glow effect for primary buttons and active states: shadow-[0_0_15px_rgba(255,45,117,0.5)]",
+    "glassmorphism": "backdrop-blur-xl bg-white/[0.03] border border-white/10"
+  },
+  "instructions_to_main_agent": [
+    "Apply dark mode universally (class 'dark' on html/body).",
+    "Implement the landing page with the hero background and a heavy dark overlay to ensure text contrast.",
+    "Use Framer Motion or Tailwind transitions for smooth hover states on cards and buttons.",
+    "The Dashboard UI should feel dense but luxurious. Use glassmorphism for widgets and cards.",
+    "For the AI Reply Generator, use the primary gradient for the generate button.",
+    "Ensure the Credits Remaining indicator is highly visible in the dashboard navbar (e.g., a pill with a subtle glow).",
+    "For the Review system, build a rich list view or masonry grid with reviewer avatars, star ratings (using Lucide icons in a yellow/gold color or brand pink), and a 'Generate AI Reply' button.",
+    "Add 'data-testid' to all interactive elements for robust testing."
+  ]
+}
